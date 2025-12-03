@@ -1,5 +1,6 @@
-flask==2.2.3
-pylast==3.1.0 
+flask>=3.0.0  # Or flask==3.0.0
+pylast==3.1.0
 requests==2.31.0
 python-dotenv==1.0.0
 gunicorn==20.1.0
+# ... rest of your packages
