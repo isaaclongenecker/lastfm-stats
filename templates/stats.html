@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ data.username }}'s Last.fm Stats</title>
+</head>
+<body>
+    <h1>Last.fm Stats for {{ data.username }}</h1>
+    <p>Registered Since: {{ data.registered_on }}</p>
+    <p><strong>Total Scrobbles:</strong> {{ data.total_scrobbles }}</p>
+
+    <h2>Top 5 All-Time Artists</h2>
+    <ol>
+    {% for artist in data.top_artists %}
+        <li>{{ artist.name }} ({{ artist.scrobbles }} scrobbles)</li>
+    {% endfor %}
+    </ol>
+
+    <h2>Top 5 Albums (Last Year)</h2>
+    <ol>
+    {% for album in data.top_albums %}
+        <li>"{{ album.title }}" by {{ album.artist }} ({{ album.scrobbles }} scrobbles)</li>
+    {% endfor %}
+    </ol>
+</body>
+</html>
