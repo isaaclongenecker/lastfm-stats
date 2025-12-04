@@ -10,6 +10,39 @@
     <p>Registered Since: {{ data.registered_on }}</p>
     <p><strong>Total Scrobbles:</strong> {{ data.total_scrobbles }}</p>
 
+<section>
+    <h2>🎧 Listening Now</h2>
+    <p>
+        {{ data.now_playing }}
+    </p>
+</section>
+
+<section>
+    <h2>🎶 Top 10 Tracks (Last Year)</h2>
+    
+    <ol>
+        {% for track in data.top_tracks %}
+        <li>
+            <strong>{{ track.title }}</strong> by {{ track.artist }} 
+            ({{ track.scrobbles }} scrobbles)
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+
+<section>
+    <h2>⏱️ Last 5 Played Tracks</h2>
+    
+    <ul>
+        {% for track in data.recent_tracks %}
+        <li>
+            <strong>{{ track.title }}</strong> by {{ track.artist }} 
+            <small>({{ track.date }})</small>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+
     <h2>Top 5 All-Time Artists</h2>
     <ol>
     {% for artist in data.top_artists %}

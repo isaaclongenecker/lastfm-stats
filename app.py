@@ -53,21 +53,44 @@ def get_lastfm_stats():
     stats_data['registered_on'] = datetime.fromtimestamp(int(registration_date_timestamp)).strftime('%B %d, %Y')
     
     # --- 2. Top Artists (All Time) ---
-    top_artists = user.get_top_artists(limit=5)
-    # Store data as a list of dicts for easy use in the website
+    top_artists = user.get_top_artists(limit=10)
     stats_data['top_artists'] = [
         {'name': artist.name, 'scrobbles': play_count} 
         for artist, play_count in top_artists
     ]
 
     # --- 3. Top Albums (Last 365 Days) ---
-    top_year_albums = user.get_top_albums(limit=5, period=pylast.PERIOD_12MONTHS) 
-    # Use the corrected access: album.title
+    top_year_albums = user.get_top_albums(limit=10, period=pylast.PERIOD_12MONTHS) 
     stats_data['top_albums'] = [
         {'title': album.title, 'artist': album.artist.name, 'scrobbles': play_count} 
         for album, play_count in top_year_albums
     ]
     
+    # 🟢 --- 4. Top Tracks (Last 365 Days) --- 🟢
+    top_year_tracks = user.get_top_tracks(limit=10, period=pylast.PERIOD_12MONTHS) 
+    stats_data['top_tracks'] = [
+        {'title': track.title, 'artist': track.artist.name, 'scrobbles': play_count}
+        for track, play_count in top_year_tracks
+    ]
+    
+    # 🟢 --- 5. Recently Played Tracks --- 🟢
+    recent_tracks = user.get_recent_tracks(limit=5)
+    stats_data['recent_tracks'] = [
+        {
+            'title': track_object.track.title,
+            'artist': track_object.track.artist.name,
+            'date': track_object.playback_date or "Now Playing" 
+        }
+        for track_object in recent_tracks
+    ]
+    
+    # 🟢 --- 6. Currently Playing Track --- 🟢
+    current_track = user.get_now_playing()
+    if current_track:
+        stats_data['now_playing'] = f"{current_track.title} by {current_track.artist.name}"
+    else:
+        stats_data['now_playing'] = "(Nothing currently scrobbling)"
+
     return stats_data
 
 # The main route for the website
