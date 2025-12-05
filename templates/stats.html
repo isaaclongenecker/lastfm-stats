@@ -9,19 +9,16 @@
     <h1>Last.fm Stats for {{ data.username }}</h1>
     <p>Registered Since: {{ data.registered_on }}</p>
     <p><strong>Total Scrobbles:</strong> {{ data.total_scrobbles }}</p>
-
+    
 <section>
     <h2>🎧 Listening Now</h2>
     
     {% if data.now_playing_image %}
-    <img src="{{ data.now_playing_image }}" alt="Album Art" style="width: 150px; height: 150px; border-radius: 8px;">
+    <img src="{{ data.now_playing_image }}" 
+         alt="Album Art" 
+         style="width: 150px; height: 150px; border-radius: 8px;">
     {% endif %}
 
-    <p>
-        {{ data.now_playing }}
-    </p>
-</section>
-    <h2>🎧 Listening Now</h2>
     <p>
         {{ data.now_playing }}
     </p>
