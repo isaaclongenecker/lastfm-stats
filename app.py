@@ -72,34 +72,32 @@ def get_lastfm_stats():
         {'title': track.title, 'artist': track.artist.name, 'scrobbles': play_count}
         for track, play_count in top_year_tracks
     ]
-    
     # 🟢 --- 5. Recently Played Tracks --- 🟢
     recent_tracks = user.get_recent_tracks(limit=6)
     stats_data['recent_tracks'] = [
-        {
-            'title': track_object.track.title,
-            'artist': track_object.track.artist.name,
-            'date': track_object.playback_date or "Now Playing" 
-        }
-        for track_object in recent_tracks
-]
+    {
+        'title': track_object.track.title,
+        'artist': track_object.track.artist.name,
+        'date': track_object.playback_date or "Now Playing" 
+    }
+    for track_object in recent_tracks
+    ]
+    # --- Currently Playing Track ---
+    current_track = user.get_now_playing()
 
-# --- Currently Playing Track ---
-current_track = user.get_now_playing()
+    # Initialize variables for the template
+    stats_data['now_playing'] = "(Nothing currently scrobbling)"
+    stats_data['now_playing_image'] = "" 
 
-# Initialize variables for the template
-stats_data['now_playing'] = "(Nothing currently scrobbling)"
-stats_data['now_playing_image'] = "" 
-
-if current_track:
-    stats_data['now_playing'] = f"{current_track.title} by {current_track.artist.name}"
+    if current_track:
+        stats_data['now_playing'] = f"{current_track.title} by {current_track.artist.name}"
     
-    try:
-        image_url = current_track.get_cover_image()
-        stats_data['now_playing_image'] = image_url
-        
-    except Exception:
-        stats_data['now_playing_image'] = ""
+        try:
+            image_url = current_track.get_cover_image()
+            stats_data['now_playing_image'] = image_url    
+        except Exception:
+            stats_data['now_playing_image'] = ""
+
     return stats_data
 
 # The main route for the website
