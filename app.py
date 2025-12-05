@@ -104,8 +104,7 @@ if current_track:
     except Exception:
         # If no image is found (e.g., track is missing album data), safely use an empty string
         stats_data['now_playing_image'] = ""
-        
-return stats_data
+        return stats_data
 
 # The main route for the website
 @app.route('/')
