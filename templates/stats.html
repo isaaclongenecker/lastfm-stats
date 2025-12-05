@@ -16,6 +16,18 @@
         {{ data.now_playing }}
     </p>
 </section>
+<section>
+    <h2>⏱️ Last 5 Played Tracks</h2>
+    
+    <ul>
+        {% for track in data.recent_tracks %}
+        <li>
+            <strong>{{ track.title }}</strong> by {{ track.artist }} 
+            <small>({{ track.date }})</small>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
 
 <section>
     <h2>🎶 Top 10 Tracks (Last Year)</h2>
@@ -30,18 +42,7 @@
     </ol>
 </section>
 
-<section>
-    <h2>⏱️ Last 5 Played Tracks</h2>
-    
-    <ul>
-        {% for track in data.recent_tracks %}
-        <li>
-            <strong>{{ track.title }}</strong> by {{ track.artist }} 
-            <small>({{ track.date }})</small>
-        </li>
-        {% endfor %}
-    </ul>
-</section>
+
 
     <h2>Top 10 All-Time Artists</h2>
     <ol>
