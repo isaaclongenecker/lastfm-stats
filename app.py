@@ -82,8 +82,8 @@ def get_lastfm_stats():
             'date': track_object.playback_date or "Now Playing" 
         }
         for track_object in recent_tracks
-    ]
-    
+]
+
 # --- Currently Playing Track ---
 current_track = user.get_now_playing()
 
@@ -100,8 +100,7 @@ if current_track:
         
     except Exception:
         stats_data['now_playing_image'] = ""
-
-return stats_data
+    return stats_data
 
 # The main route for the website
 @app.route('/')
