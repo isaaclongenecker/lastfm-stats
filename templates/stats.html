@@ -31,7 +31,7 @@
 </section>
 
 <section>
-    <h2>⏱️ Last 10 Played Tracks</h2>
+    <h2>⏱️ Last 5 Played Tracks</h2>
     
     <ul>
         {% for track in data.recent_tracks %}
@@ -50,7 +50,7 @@
     {% endfor %}
     </ol>
 
-    <h2>Top 5 Albums (Last Year)</h2>
+    <h2>Top 10 Albums (Last Year)</h2>
     <ol>
     {% for album in data.top_albums %}
         <li>"{{ album.title }}" by {{ album.artist }} ({{ album.scrobbles }} scrobbles)</li>

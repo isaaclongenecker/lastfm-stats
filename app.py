@@ -74,7 +74,7 @@ def get_lastfm_stats():
     ]
     
     # 🟢 --- 5. Recently Played Tracks --- 🟢
-    recent_tracks = user.get_recent_tracks(limit=5)
+    recent_tracks = user.get_recent_tracks(limit=6)
     stats_data['recent_tracks'] = [
         {
             'title': track_object.track.title,
