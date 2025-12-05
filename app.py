@@ -84,14 +84,28 @@ def get_lastfm_stats():
         for track_object in recent_tracks
     ]
     
-    # 🟢 --- 6. Currently Playing Track --- 🟢
-    current_track = user.get_now_playing()
-    if current_track:
-        stats_data['now_playing'] = f"{current_track.title} by {current_track.artist.name}"
-    else:
-        stats_data['now_playing'] = "(Nothing currently scrobbling)"
+    # --- Currently Playing Track ---
+current_track = user.get_now_playing()
 
-    return stats_data
+# Initialize variables for the template
+stats_data['now_playing'] = "(Nothing currently scrobbling)"
+stats_data['now_playing_image'] = "" # <-- NEW VARIABLE
+
+if current_track:
+    # Set the text string
+    stats_data['now_playing'] = f"{current_track.title} by {current_track.artist.name}"
+    
+    try:
+        # Get the URL for the album art
+        # pylast's get_cover_image() returns the URL for the largest image available
+        image_url = current_track.get_cover_image()
+        stats_data['now_playing_image'] = image_url
+        
+    except Exception:
+        # If no image is found (e.g., track is missing album data), safely use an empty string
+        stats_data['now_playing_image'] = ""
+        
+return stats_data
 
 # The main route for the website
 @app.route('/')
