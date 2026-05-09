@@ -87,34 +87,22 @@ def index():
         try:
             network = pylast.LastFMNetwork(api_key=API_KEY, api_secret=API_SECRET)
             
-            # 1. Get the official artist name first via search
+            # 1. Find the official artist name first
             search = network.search_for_artist(artist_query)
             results = search.get_next_page()
             
             if results:
-                # Get the official artist object and its name
                 official_artist = results[0]
                 official_name = official_artist.get_name()
                 
-                # 2. Use the NETWORK to get the user object
-                user_obj = network.get_user(LASTFM_USERNAME)
+                # 2. Look specifically in your library for this artist
+                library = network.get_library(LASTFM_USERNAME)
                 
-                # 3. Use the USER object to get the playcount for the artist
-                # This is the most reliable way to get this data
-                playcount = user_obj.get_artist_tracks_report(official_name)
+                # This returns the playcount as an integer directly
+                playcount = library.get_userplaycount(official_artist)
                 
-                # If that report fails, fallback to the standard count
-                if playcount is None:
-                    playcount = official_artist.get_userplaycount(LASTFM_USERNAME)
-
-                # Final safety check to make sure it's an integer
-                try:
-                    count = int(playcount) if playcount else 0
-                except:
-                    count = 0
-                
-                if count > 0:
-                    search_result = f"Yes! I've listened to {official_name} {count} times."
+                if playcount and int(playcount) > 0:
+                    search_result = f"Yes! I've listened to {official_name} {playcount} times."
                 else:
                     search_result = f"Nope, I haven't listened to {official_name} yet."
             else:
