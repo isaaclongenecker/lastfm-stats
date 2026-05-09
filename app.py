@@ -81,7 +81,7 @@ def index():
     data = get_lastfm_stats()
     search_result = None
 
-    # 2. Handle the "Have I listened to..." search bar logic
+   # 2. Handle the "Have I listened to..." search bar logic
     artist_query = request.args.get('artist_name')
     if artist_query:
         try:
@@ -92,7 +92,7 @@ def index():
             top_result = search.get_next_page()[0]  # Get the top search match
             
             if top_result:
-                playcount = top_result.get_userplaycount(LASTFM_USERNAME)
+                playcount = top_result.get_userplaycount()
                 artist_name = top_result.get_name()
                 
                 if playcount > 0:
