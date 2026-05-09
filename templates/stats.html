@@ -10,6 +10,24 @@
     <p>Registered Since: {{ data.registered_on }}</p>
     <p><strong>Total Scrobbles:</strong> {{ data.total_scrobbles }}</p>
     
+    <!-- THE SEARCH BAR -->
+<section style="margin: 20px 0; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px;">
+    <h3>Have I listened to...</h3>
+    <form action="/" method="GET" style="display: flex; gap: 10px;">
+        <input type="text" name="artist_name" placeholder="Enter artist name..." required 
+               style="padding: 8px; flex-grow: 1; border-radius: 4px; border: 1px solid #ccc;">
+        <button type="submit" style="padding: 8px 15px; background-color: #ba0000; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Check Artist
+        </button>
+    </form>
+
+    <!-- DISPLAY THE RESULT -->
+    {% if search_result %}
+        <p style="margin-top: 15px; font-size: 1.1em; font-weight: bold; color: #333;">
+            🔍 {{ search_result }}
+        </p>
+    {% endif %}
+</section>
 <section>
     <h2>🎧 Listening Now</h2>
     
