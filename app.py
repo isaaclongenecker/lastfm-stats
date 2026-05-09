@@ -87,27 +87,34 @@ def index():
         try:
             network = pylast.LastFMNetwork(api_key=API_KEY, api_secret=API_SECRET)
             
-            # 1. Search for the artist
+            # 1. Get the official artist name first via search
             search = network.search_for_artist(artist_query)
             results = search.get_next_page()
             
             if results:
-                # 2. Get the official name from the top result
-                top_artist = results[0]
-                official_name = top_artist.get_name()
+                # Get the official artist object and its name
+                official_artist = results[0]
+                official_name = official_artist.get_name()
                 
-                # 3. CRITICAL FIX: Explicitly ask for YOUR playcount for this official name
+                # 2. Use the NETWORK to get the user object
                 user_obj = network.get_user(LASTFM_USERNAME)
-                playcount = top_artist.get_userplaycount(user_obj)
                 
-                # Safety check for the "None" we saw earlier
+                # 3. Use the USER object to get the playcount for the artist
+                # This is the most reliable way to get this data
+                playcount = user_obj.get_artist_tracks_report(official_name)
+                
+                # If that report fails, fallback to the standard count
                 if playcount is None:
-                    playcount = 0
-                else:
-                    playcount = int(playcount)
+                    playcount = official_artist.get_userplaycount(LASTFM_USERNAME)
+
+                # Final safety check to make sure it's an integer
+                try:
+                    count = int(playcount) if playcount else 0
+                except:
+                    count = 0
                 
-                if playcount > 0:
-                    search_result = f"Yes! I've listened to {official_name} {playcount} times."
+                if count > 0:
+                    search_result = f"Yes! I've listened to {official_name} {count} times."
                 else:
                     search_result = f"Nope, I haven't listened to {official_name} yet."
             else:
