@@ -81,19 +81,23 @@ def index():
     data = get_lastfm_stats()
     search_result = None
 
-   # 2. Handle the "Have I listened to..." search bar logic
+  # 2. Handle the "Have I listened to..." search bar logic
     artist_query = request.args.get('artist_name')
     if artist_query:
         try:
             network = pylast.LastFMNetwork(api_key=API_KEY, api_secret=API_SECRET)
             
-            # Use search instead of a direct get to find the most likely artist
             search = network.search_for_artist(artist_query)
-            top_result = search.get_next_page()[0]  # Get the top search match
+            results = search.get_next_page()
             
-            if top_result:
+            if results:
+                top_result = results[0]
                 playcount = top_result.get_userplaycount()
                 artist_name = top_result.get_name()
+                
+                # FIX: If playcount is None, treat it as 0
+                if playcount is None:
+                    playcount = 0
                 
                 if playcount > 0:
                     search_result = f"Yes! I've listened to {artist_name} {playcount} times."
@@ -103,7 +107,6 @@ def index():
                 search_result = f"Could not find an artist named '{artist_query}'."
                 
         except Exception as e:
-            # Helpful for debugging in your Render logs
             print(f"Search Error: {e}")
             search_result = "Sorry, I couldn't find that artist."
 
