@@ -87,22 +87,29 @@ def index():
         try:
             network = pylast.LastFMNetwork(api_key=API_KEY, api_secret=API_SECRET)
             
+            # 1. Search for the artist
             search = network.search_for_artist(artist_query)
             results = search.get_next_page()
             
             if results:
-                top_result = results[0]
-                playcount = top_result.get_userplaycount()
-                artist_name = top_result.get_name()
+                # 2. Get the official name from the top result
+                top_artist = results[0]
+                official_name = top_artist.get_name()
                 
-                # FIX: If playcount is None, treat it as 0
+                # 3. CRITICAL FIX: Explicitly ask for YOUR playcount for this official name
+                user_obj = network.get_user(LASTFM_USERNAME)
+                playcount = top_artist.get_userplaycount(user_obj)
+                
+                # Safety check for the "None" we saw earlier
                 if playcount is None:
                     playcount = 0
+                else:
+                    playcount = int(playcount)
                 
                 if playcount > 0:
-                    search_result = f"Yes! I've listened to {artist_name} {playcount} times."
+                    search_result = f"Yes! I've listened to {official_name} {playcount} times."
                 else:
-                    search_result = f"Nope, I haven't listened to {artist_name} yet."
+                    search_result = f"Nope, I haven't listened to {official_name} yet."
             else:
                 search_result = f"Could not find an artist named '{artist_query}'."
                 
