@@ -137,9 +137,9 @@
         .answer { display: flex; align-items: center; gap: 20px; margin-top: 28px; }
         .answer .art { width: 88px; flex: none; font-size: 2.25rem; }
         .answer p { font-size: 1.3125rem; line-height: 1.35; font-weight: 500; }
+        .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .badge {
             display: inline-block;
-            margin-top: 6px;
             padding: 3px 12px;
             border: 1px solid var(--accent);
             border-radius: 999px;
@@ -294,7 +294,11 @@
                 {% endif %}
                 <div>
                     <p>{{ search.text }}</p>
-                    {% if search.badge %}<span class="badge">{{ search.badge }}</span>{% endif %}
+                    {% if search.badges %}
+                    <div class="badges">
+                        {% for badge in search.badges %}<span class="badge">{{ badge }}</span>{% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
