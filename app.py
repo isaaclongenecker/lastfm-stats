@@ -95,7 +95,7 @@ def load_week_scrobbles():
     one_week_ago = int(time.time()) - 7 * 24 * 60 * 60
     answer = lastfm_get('user.getrecenttracks', limit=1, **{'from': one_week_ago})
     total = int(answer['recenttracks']['@attr']['total'])
-    return f"{total:,} scrobble{'' if total == 1 else 's'} in the last week"
+    return f"{total:,} song{'' if total == 1 else 's'} played in the last week"
 
 
 def load_recent():
