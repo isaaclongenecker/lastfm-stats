@@ -103,13 +103,24 @@ def find_artist_in_my_history(names):
         if isinstance(artists, dict):  # Last.fm skips the list when a page has one artist
             artists = [artists]
 
-        for artist in artists:
+        for position, artist in enumerate(artists, start=1):
             if artist['name'].lower() in wanted:
-                return artist['name'], int(artist['playcount'])
+                rank = (page - 1) * 1000 + position
+                return artist['name'], rank
 
         if page >= int(top_artists['@attr']['totalPages']):
-            return None, 0
+            return None, None
         page += 1
+
+def describe_listening(artist_name, rank):
+    """Turns an artist's all-time rank into a friendly answer."""
+    if rank <= 25:
+        return f"Yes! {artist_name} is one of my favorite artists."
+    if rank <= 50:
+        return f"Yes, I've listened to {artist_name} and I like them."
+    if rank <= 100:
+        return f"Yes, I've listened to {artist_name} before."
+    return f"Yes, but I don't listen to {artist_name} much."
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -130,10 +141,10 @@ def index():
                 names_to_check.append(results[0].get_name())
 
             # Look for the typed name or the official name in my listening history
-            my_artist, playcount = find_artist_in_my_history(names_to_check)
+            my_artist, rank = find_artist_in_my_history(names_to_check)
 
             if my_artist:
-                search_result = f"Yes! I've listened to {my_artist} {playcount} time{'s' if playcount != 1 else ''}."
+                search_result = describe_listening(my_artist, rank)
             elif results:
                 search_result = f"Nope, I haven't listened to {results[0].get_name()} yet."
             else:
