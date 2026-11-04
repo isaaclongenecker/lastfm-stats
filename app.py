@@ -96,11 +96,9 @@ def index():
                 official_artist = results[0]
                 official_name = official_artist.get_name()
                 
-                # 2. Look specifically in your library for this artist
-                library = network.get_library(LASTFM_USERNAME)
-                
-                # This returns the playcount as an integer directly
-                playcount = library.get_userplaycount(official_artist)
+            # 2. Look up my play count for this artist
+                   my_artist = pylast.Artist(official_name, network, username=LASTFM_USERNAME)
+                   playcount = my_artist.get_userplaycount()
                 
                 if playcount and int(playcount) > 0:
                     search_result = f"Yes! I've listened to {official_name} {playcount} times."
