@@ -269,25 +269,32 @@ def index():
             # First check whether I've been playing this artist a lot lately
             lately_artist = find_artist_lately(names_to_check)
 
-            # Otherwise look for the typed or official name in my all-time history
-            my_artist, rank = (None, None) if lately_artist else find_artist_in_my_history(names_to_check)
+            # Also look for the typed or official name in my all-time history
+            my_artist, rank = find_artist_in_my_history(names_to_check)
 
             if lately_artist:
+                # An all-time favorite keeps its Favorite badge beside Heavy rotation
+                badges = ['Heavy rotation']
+                if rank and listening_badge(rank) == 'Favorite':
+                    badges.insert(0, 'Favorite')
                 search = {
                     'text': f"Yes, I've been listening to {lately_artist} a lot lately!",
-                    'badge': 'Heavy rotation',
+                    'badges': badges,
                     'image': get_artist_art().get(lately_artist.lower(), ''),
                     'found': True,
                 }
             elif my_artist:
                 search = {
                     'text': describe_listening(my_artist, rank),
-                    'badge': listening_badge(rank),
+                    'badges': [listening_badge(rank)],
                     'image': get_artist_art().get(my_artist.lower(), ''),
                     'found': True,
                 }
             elif results:
-                search = {'text': f"Nope, I haven't listened to {results[0].get_name()} yet.", 'badge': 'Not yet'}
+                search = {
+                    'text': f"Nope, I haven't listened to {results[0].get_name()} yet.",
+                    'badges': ['Recommend it to me'],
+                }
             else:
                 search = {'text': f"Could not find an artist named '{artist_query}'. Check the spelling and try again."}
 
