@@ -347,7 +347,7 @@
             <ol class="wall {{ extra_class }}">
                 {% for album in albums %}
                 <li>
-                    <a class="sleeve" href="{{ album.url }}" target="_blank" rel="noopener">
+                    <a class="sleeve" href="{{ (album.title ~ ' ' ~ album.artist)|spotify_search }}" target="_blank" rel="noopener">
                         <div class="art">
                             {% if album.image %}
                             <img {% if loop.first %}class="sharpen"{% endif %} src="{{ album.image }}" alt="" loading="lazy">
@@ -407,7 +407,7 @@
                             <span class="rank">{{ loop.index }}</span>
                             <span class="no-thumb"></span>
                             <div>
-                                <a class="name" href="{{ track.url }}" target="_blank" rel="noopener">{{ track.title }}</a>
+                                <a class="name" href="{{ (track.title ~ ' ' ~ track.artist)|spotify_search }}" target="_blank" rel="noopener">{{ track.title }}</a>
                                 <small>{{ track.artist }}, {{ "{:,}".format(track.scrobbles) }} play{{ "" if track.scrobbles == 1 else "s" }}</small>
                                 <div class="meter" style="--level: {{ track.meter }}%" aria-hidden="true"></div>
                             </div>
@@ -425,7 +425,7 @@
             <ol class="recent">
                 {% for track in data.recent_tracks %}
                 <li>
-                    <a href="{{ track.url }}" target="_blank" rel="noopener">
+                    <a href="{{ (track.title ~ ' ' ~ track.artist)|spotify_search }}" target="_blank" rel="noopener">
                         <div class="art">
                             {% if track.image %}
                             <img src="{{ track.image }}" alt="" loading="lazy">
