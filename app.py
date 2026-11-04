@@ -2,6 +2,7 @@ import pylast
 import os
 import time
 import requests
+from urllib.parse import quote
 from flask import Flask, render_template, request
 
 # --- 1. SET UP CREDENTIALS ---
@@ -27,7 +28,28 @@ NOT_PLAYED_PERIOD = '6month'
 DISCOVERED_PERIOD = '3month'
 DISCOVERED_MIN_PLAYS = 3
 
+# The plain-English names of Last.fm's time periods, used in the tag definitions
+PERIOD_WORDS = {'1month': 'month', '3month': '3 months', '6month': '6 months', '12month': '12 months'}
+
+# The definitions that pop up over each tag
+BADGE_DEFINITIONS = {
+    'Favorite': 'One of my top 25 artists of all time.',
+    'Likes them': 'One of my top 50 artists of all time.',
+    'Heard before': 'One of my top 100 artists of all time.',
+    'Heavy rotation': f'One of my top {LATELY_TOP_ARTISTS} artists over the last month, with at least {LATELY_MIN_SCROBBLES} plays.',
+    'Recently discovered': f'Nearly all of my plays of this artist came in the last {PERIOD_WORDS[DISCOVERED_PERIOD]}.',
+    "Haven't played in a while": f"I've played this artist before, but not in the last {PERIOD_WORDS[NOT_PLAYED_PERIOD]}.",
+    'Recommend it to me': "I haven't played this artist yet, so it could be a good recommendation.",
+}
+
 app = Flask(__name__)
+
+
+@app.template_filter('spotify_search')
+def spotify_search(text):
+    """Makes a link that searches Spotify for this text."""
+    return 'https://open.spotify.com/search/' + quote(text, safe='')
+
 
 # Last.fm uses this image when it has no real artwork
 PLACEHOLDER_IMAGE = '2a96cbd8b46e442fc41c2b86b821562f'
@@ -351,7 +373,7 @@ def index():
             print(f"Search Error: {e}", flush=True)
             search = {'text': "That search didn't go through. Try again in a minute."}
 
-    return render_template('stats.html', data=data, search=search, artist_query=artist_query)
+    return render_template('stats.html', data=data, search=search, artist_query=artist_query, badge_definitions=BADGE_DEFINITIONS)
 
 
 if __name__ == '__main__':
