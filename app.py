@@ -2,7 +2,6 @@ import pylast
 import os
 import time
 import requests
-from datetime import datetime
 from flask import Flask, render_template, request
 
 # --- 1. SET UP CREDENTIALS ---
@@ -10,6 +9,14 @@ from flask import Flask, render_template, request
 API_KEY = os.environ.get('LASTFM_API_KEY')
 API_SECRET = os.environ.get('LASTFM_API_SECRET')
 LASTFM_USERNAME = os.environ.get('LASTFM_USERNAME')
+
+# The name shown at the top of the page
+DISPLAY_NAME = 'Isaac Longenecker'
+
+# An artist counts as "a lot lately" if, over the last month, they are
+# in my top LATELY_TOP_ARTISTS and have at least LATELY_MIN_SCROBBLES plays
+LATELY_TOP_ARTISTS = 25
+LATELY_MIN_SCROBBLES = 10
 
 app = Flask(__name__)
 
@@ -83,13 +90,12 @@ def add_meter(items):
     return items
 
 
-def load_profile():
-    user = lastfm_get('user.getinfo')['user']
-    registered = user['registered'].get('unixtime') or user['registered'].get('#text')
-    return {
-        'total_scrobbles': f"{int(user['playcount']):,}",
-        'registered_on': datetime.fromtimestamp(int(registered)).strftime('%B %d, %Y'),
-    }
+def load_week_scrobbles():
+    """Counts my scrobbles over the last 7 days."""
+    one_week_ago = int(time.time()) - 7 * 24 * 60 * 60
+    answer = lastfm_get('user.getrecenttracks', limit=1, **{'from': one_week_ago})
+    total = int(answer['recenttracks']['@attr']['total'])
+    return f"{total:,} scrobble{'' if total == 1 else 's'} in the last week"
 
 
 def load_recent():
@@ -133,8 +139,8 @@ def load_top_tracks():
     ])
 
 
-def load_top_albums():
-    albums = as_list(lastfm_get('user.gettopalbums', period='12month', limit=10)['topalbums'].get('album'))
+def load_top_albums(period):
+    albums = as_list(lastfm_get('user.gettopalbums', period=period, limit=10)['topalbums'].get('album'))
     return [
         {
             'title': a['name'],
@@ -145,6 +151,24 @@ def load_top_albums():
         }
         for a in albums
     ]
+
+
+def load_lately_artists():
+    """My most-played artists over the last month."""
+    artists = lastfm_get('user.gettopartists', period='1month', limit=LATELY_TOP_ARTISTS)['topartists']
+    return [
+        {'name': a['name'], 'scrobbles': int(a['playcount'])}
+        for a in as_list(artists.get('artist'))
+    ]
+
+
+def find_artist_lately(names):
+    """Returns the artist's name if I've been playing them a lot lately."""
+    wanted = {name.strip().lower() for name in names}
+    for artist in cached('artists lately', 600, load_lately_artists, []):
+        if artist['name'].lower() in wanted and artist['scrobbles'] >= LATELY_MIN_SCROBBLES:
+            return artist['name']
+    return None
 
 
 def load_artist_art():
@@ -165,8 +189,8 @@ def get_artist_art():
 
 def get_lastfm_stats():
     """Fetches all necessary Last.fm data for the dashboard."""
-    stats_data = {'username': LASTFM_USERNAME}
-    stats_data.update(cached('profile', 600, load_profile, {'total_scrobbles': '', 'registered_on': ''}))
+    stats_data = {'username': LASTFM_USERNAME, 'name': DISPLAY_NAME}
+    stats_data['week_scrobbles'] = cached('week scrobbles', 600, load_week_scrobbles, '')
     stats_data.update(cached('recent tracks', 30, load_recent, {'now_playing': None, 'recent_tracks': []}))
 
     artist_art = get_artist_art()
@@ -175,7 +199,8 @@ def get_lastfm_stats():
         dict(artist, image=artist_art.get(artist['name'].lower(), '')) for artist in top_artists
     ]
     stats_data['top_tracks'] = cached('top tracks', 600, load_top_tracks, [])
-    stats_data['top_albums'] = cached('top albums', 600, load_top_albums, [])
+    stats_data['month_albums'] = cached('albums this month', 600, lambda: load_top_albums('1month'), [])
+    stats_data['top_albums'] = cached('albums this year', 600, lambda: load_top_albums('12month'), [])
 
     # The banner shows the current track, or the last one played
     recent = stats_data['recent_tracks']
@@ -241,10 +266,20 @@ def index():
             if results:
                 names_to_check.append(results[0].get_name())
 
-            # Look for the typed name or the official name in my listening history
-            my_artist, rank = find_artist_in_my_history(names_to_check)
+            # First check whether I've been playing this artist a lot lately
+            lately_artist = find_artist_lately(names_to_check)
 
-            if my_artist:
+            # Otherwise look for the typed or official name in my all-time history
+            my_artist, rank = (None, None) if lately_artist else find_artist_in_my_history(names_to_check)
+
+            if lately_artist:
+                search = {
+                    'text': f"Yes, I've been listening to {lately_artist} a lot lately!",
+                    'badge': 'Heavy rotation',
+                    'image': get_artist_art().get(lately_artist.lower(), ''),
+                    'found': True,
+                }
+            elif my_artist:
                 search = {
                     'text': describe_listening(my_artist, rank),
                     'badge': listening_badge(rank),
