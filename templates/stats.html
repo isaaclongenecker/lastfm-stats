@@ -99,6 +99,17 @@
         }
         .hero-by { margin-top: 18px; font-size: clamp(1.125rem, 2vw, 1.375rem); }
         .hero-by span { color: var(--dust); }
+        .listen {
+            display: inline-block;
+            margin-top: 22px;
+            padding: 13px 24px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: #21141c;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .listen:hover { background: var(--paper); color: #21141c; }
 
         /* ---------- Search ---------- */
         .search { width: var(--page); margin: 0 auto 88px; }
@@ -123,7 +134,7 @@
         }
         .search input::placeholder { color: var(--dust); opacity: .7; }
         .search input:focus { outline: none; border-color: var(--accent); }
-        .search button {
+        .search form button {
             align-self: center;
             padding: 13px 24px;
             border: 0;
@@ -133,20 +144,41 @@
             font: 700 1rem/1 var(--body);
             cursor: pointer;
         }
-        .search button:hover { background: var(--paper); }
+        .search form button:hover { background: var(--paper); }
         .answer { display: flex; align-items: center; gap: 20px; margin-top: 28px; }
         .answer .art { width: 88px; flex: none; font-size: 2.25rem; }
         .answer p { font-size: 1.3125rem; line-height: 1.35; font-weight: 500; }
-        .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .badges { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .badge {
             display: inline-block;
             padding: 3px 12px;
             border: 1px solid var(--accent);
             border-radius: 999px;
             color: var(--accent);
-            font-size: .875rem;
-            font-weight: 700;
+            background: none;
+            font: 700 .875rem/1.5 var(--body);
+            cursor: help;
         }
+        .badge:hover, .badge.show { background: rgb(255 255 255 / .1); }
+        .tip {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 5;
+            width: max-content;
+            max-width: min(300px, 100%);
+            padding: 9px 12px;
+            border-radius: 6px;
+            background: var(--paper);
+            color: #21141c;
+            font-size: .9375rem;
+            line-height: 1.35;
+            box-shadow: 0 10px 30px rgb(0 0 0 / .45);
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity .12s;
+        }
+        .badge:hover + .tip, .badge:focus-visible + .tip, .badge.show + .tip { visibility: visible; opacity: 1; }
 
         /* ---------- Sections ---------- */
         .block { width: var(--page); margin: 0 auto 88px; }
@@ -231,7 +263,7 @@
 
         @media (prefers-reduced-motion: reduce) {
             .bars i { animation: none; }
-            .sleeve-text { transition: none; }
+            .sleeve-text, .tip { transition: none; }
         }
     </style>
 </head>
@@ -266,6 +298,7 @@
                 {% endif %}
                 <p class="hero-title">{{ data.hero.title }}</p>
                 <p class="hero-by">{{ data.hero.artist }}{% if data.hero.album %} <span>on {{ data.hero.album }}</span>{% endif %}</p>
+                <a class="listen" href="{{ (data.hero.title ~ ' ' ~ data.hero.artist)|spotify_search }}" target="_blank" rel="noopener">{% if data.now_playing %}Listen with me on Spotify{% else %}Play this song on Spotify{% endif %}</a>
             </div>
         </div>
         {% else %}
@@ -296,7 +329,10 @@
                     <p>{{ search.text }}</p>
                     {% if search.badges %}
                     <div class="badges">
-                        {% for badge in search.badges %}<span class="badge">{{ badge }}</span>{% endfor %}
+                        {% for badge in search.badges %}
+                        <button type="button" class="badge" aria-describedby="tag-{{ loop.index }}">{{ badge }}</button>
+                        <span class="tip" id="tag-{{ loop.index }}" role="tooltip">{{ badge_definitions[badge] }}</span>
+                        {% endfor %}
                     </div>
                     {% endif %}
                 </div>
@@ -352,7 +388,7 @@
                                 {% endif %}
                             </div>
                             <div>
-                                <a class="name" href="{{ artist.url }}" target="_blank" rel="noopener">{{ artist.name }}</a>
+                                <a class="name" href="{{ artist.name|spotify_search }}" target="_blank" rel="noopener">{{ artist.name }}</a>
                                 <small>{{ "{:,}".format(artist.scrobbles) }} play{{ "" if artist.scrobbles == 1 else "s" }}</small>
                                 <div class="meter" style="--level: {{ artist.meter }}%" aria-hidden="true"></div>
                             </div>
@@ -411,6 +447,15 @@
     <footer>Listening data from <a href="https://www.last.fm/user/{{ data.username }}" target="_blank" rel="noopener">Last.fm</a></footer>
 
     <script>
+        // Tapping a tag shows its definition, since phones have no hover. Tapping elsewhere hides it.
+        document.addEventListener('click', function (event) {
+            var tapped = event.target.closest('.badge');
+            document.querySelectorAll('.badge.show').forEach(function (badge) {
+                if (badge !== tapped) badge.classList.remove('show');
+            });
+            if (tapped) tapped.classList.toggle('show');
+        });
+
         // Loads sharper artwork for the two largest covers. If it isn't available, the normal cover stays.
         document.querySelectorAll('img.sharpen').forEach(function (img) {
             var larger = img.src.replace('/300x300/', '/ar0/');
