@@ -17,7 +17,8 @@ def get_lastfm_stats():
     # Connect to the Last.fm network
     network = pylast.LastFMNetwork(
         api_key=API_KEY,
-        api_secret=API_SECRET
+        api_secret=API_SECRET,
+        username=LASTFM_USERNAME
     )
 
     user = network.get_user(LASTFM_USERNAME)
