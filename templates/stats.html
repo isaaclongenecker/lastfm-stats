@@ -322,7 +322,7 @@
                         <span class="sleeve-text">
                             <strong>{{ album.title }}</strong>
                             <span>{{ album.artist }}</span>
-                            <span class="plays">{{ "{:,}".format(album.scrobbles) }} scrobbles</span>
+                            <span class="plays">{{ "{:,}".format(album.scrobbles) }} play{{ "" if album.scrobbles == 1 else "s" }}</span>
                         </span>
                     </a>
                 </li>
@@ -353,7 +353,7 @@
                             </div>
                             <div>
                                 <a class="name" href="{{ artist.url }}" target="_blank" rel="noopener">{{ artist.name }}</a>
-                                <small>{{ "{:,}".format(artist.scrobbles) }} scrobbles</small>
+                                <small>{{ "{:,}".format(artist.scrobbles) }} play{{ "" if artist.scrobbles == 1 else "s" }}</small>
                                 <div class="meter" style="--level: {{ artist.meter }}%" aria-hidden="true"></div>
                             </div>
                         </li>
@@ -372,7 +372,7 @@
                             <span class="no-thumb"></span>
                             <div>
                                 <a class="name" href="{{ track.url }}" target="_blank" rel="noopener">{{ track.title }}</a>
-                                <small>{{ track.artist }}, {{ "{:,}".format(track.scrobbles) }} scrobbles</small>
+                                <small>{{ track.artist }}, {{ "{:,}".format(track.scrobbles) }} play{{ "" if track.scrobbles == 1 else "s" }}</small>
                                 <div class="meter" style="--level: {{ track.meter }}%" aria-hidden="true"></div>
                             </div>
                         </li>
