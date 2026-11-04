@@ -1,5 +1,6 @@
 import pylast
 import os
+import time
 import requests
 from datetime import datetime
 from flask import Flask, render_template, request
@@ -12,70 +13,175 @@ LASTFM_USERNAME = os.environ.get('LASTFM_USERNAME')
 
 app = Flask(__name__)
 
+# Last.fm uses this image when it has no real artwork
+PLACEHOLDER_IMAGE = '2a96cbd8b46e442fc41c2b86b821562f'
+
+# Remembers recent answers from Last.fm so the page loads faster
+_cache = {}
+
+
+def cached(name, seconds, loader, default):
+    """Reuses a recent result. If Last.fm fails, keeps the page working."""
+    saved = _cache.get(name)
+    if saved and time.time() - saved['time'] < seconds:
+        return saved['value']
+    try:
+        value = loader()
+        _cache[name] = {'time': time.time(), 'value': value}
+        return value
+    except Exception as e:
+        print(f"Could not load {name}: {e}", flush=True)
+        return saved['value'] if saved else default
+
+
+def lastfm_get(method, **params):
+    """Sends one request to Last.fm and returns the answer."""
+    params.update({
+        'method': method,
+        'user': LASTFM_USERNAME,
+        'api_key': API_KEY,
+        'format': 'json',
+    })
+    response = requests.get('https://ws.audioscrobbler.com/2.0/', params=params, timeout=15)
+    response.raise_for_status()
+    return response.json()
+
+
+def as_list(value):
+    """Last.fm skips the list when there is only one item."""
+    if not value:
+        return []
+    return [value] if isinstance(value, dict) else value
+
+
+def best_image(item):
+    """Returns the largest real image Last.fm gave us, or an empty string."""
+    images = {image.get('size'): image.get('#text', '') for image in as_list(item.get('image'))}
+    for size in ('extralarge', 'large', 'medium', 'small'):
+        url = images.get(size, '')
+        if url and PLACEHOLDER_IMAGE not in url:
+            return url
+    return ''
+
+
+def time_ago(timestamp):
+    """Turns a time into wording like '12 minutes ago'."""
+    seconds = max(0, int(time.time()) - int(timestamp))
+    if seconds < 60:
+        return 'just now'
+    for size, unit in ((86400, 'day'), (3600, 'hour'), (60, 'minute')):
+        if seconds >= size:
+            count = seconds // size
+            return f"{count} {unit}{'' if count == 1 else 's'} ago"
+
+
+def add_meter(items):
+    """Adds each item's plays as a percentage of the most-played item."""
+    highest = max([item['scrobbles'] for item in items] or [1]) or 1
+    for item in items:
+        item['meter'] = max(3, round(item['scrobbles'] / highest * 100))
+    return items
+
+
+def load_profile():
+    user = lastfm_get('user.getinfo')['user']
+    registered = user['registered'].get('unixtime') or user['registered'].get('#text')
+    return {
+        'total_scrobbles': f"{int(user['playcount']):,}",
+        'registered_on': datetime.fromtimestamp(int(registered)).strftime('%B %d, %Y'),
+    }
+
+
+def load_recent():
+    tracks = as_list(lastfm_get('user.getrecenttracks', limit=6)['recenttracks'].get('track'))
+    now_playing = None
+    recent = []
+    for track in tracks:
+        item = {
+            'title': track.get('name', ''),
+            'artist': track.get('artist', {}).get('#text', ''),
+            'album': track.get('album', {}).get('#text', ''),
+            'image': best_image(track),
+            'url': track.get('url', ''),
+        }
+        if track.get('@attr', {}).get('nowplaying') == 'true':
+            now_playing = item
+        else:
+            item['date'] = time_ago(track['date']['uts'])
+            recent.append(item)
+    return {'now_playing': now_playing, 'recent_tracks': recent[:5]}
+
+
+def load_top_artists():
+    artists = as_list(lastfm_get('user.gettopartists', period='overall', limit=10)['topartists'].get('artist'))
+    return add_meter([
+        {'name': a['name'], 'scrobbles': int(a['playcount']), 'url': a.get('url', '')}
+        for a in artists
+    ])
+
+
+def load_top_tracks():
+    tracks = as_list(lastfm_get('user.gettoptracks', period='12month', limit=10)['toptracks'].get('track'))
+    return add_meter([
+        {
+            'title': t['name'],
+            'artist': t.get('artist', {}).get('name', ''),
+            'scrobbles': int(t['playcount']),
+            'url': t.get('url', ''),
+        }
+        for t in tracks
+    ])
+
+
+def load_top_albums():
+    albums = as_list(lastfm_get('user.gettopalbums', period='12month', limit=10)['topalbums'].get('album'))
+    return [
+        {
+            'title': a['name'],
+            'artist': a.get('artist', {}).get('name', ''),
+            'scrobbles': int(a['playcount']),
+            'image': best_image(a),
+            'url': a.get('url', ''),
+        }
+        for a in albums
+    ]
+
+
+def load_artist_art():
+    """Uses each artist's most-played album cover as their picture."""
+    albums = as_list(lastfm_get('user.gettopalbums', period='overall', limit=500)['topalbums'].get('album'))
+    art = {}
+    for album in albums:
+        artist = album.get('artist', {}).get('name', '').lower()
+        image = best_image(album)
+        if artist and image and artist not in art:
+            art[artist] = image
+    return art
+
+
+def get_artist_art():
+    return cached('artist art', 3600, load_artist_art, {})
+
+
 def get_lastfm_stats():
     """Fetches all necessary Last.fm data for the dashboard."""
-    
-    # Connect to the Last.fm network
-    network = pylast.LastFMNetwork(
-        api_key=API_KEY,
-        api_secret=API_SECRET,
-        username=LASTFM_USERNAME
-    )
+    stats_data = {'username': LASTFM_USERNAME}
+    stats_data.update(cached('profile', 600, load_profile, {'total_scrobbles': '', 'registered_on': ''}))
+    stats_data.update(cached('recent tracks', 30, load_recent, {'now_playing': None, 'recent_tracks': []}))
 
-    user = network.get_user(LASTFM_USERNAME)
-    stats_data = {}
-
-    # --- User Summary ---
-    stats_data['username'] = LASTFM_USERNAME
-    stats_data['total_scrobbles'] = user.get_playcount() 
-    reg_date = user.get_registered()
-    stats_data['registered_on'] = datetime.fromtimestamp(int(reg_date)).strftime('%B %d, %Y')
-    
-    # --- Top Artists (All Time) ---
-    top_artists = user.get_top_artists(limit=10)
+    artist_art = get_artist_art()
+    top_artists = cached('top artists', 600, load_top_artists, [])
     stats_data['top_artists'] = [
-        {'name': artist.name, 'scrobbles': play_count} 
-        for artist, play_count in top_artists
+        dict(artist, image=artist_art.get(artist['name'].lower(), '')) for artist in top_artists
     ]
+    stats_data['top_tracks'] = cached('top tracks', 600, load_top_tracks, [])
+    stats_data['top_albums'] = cached('top albums', 600, load_top_albums, [])
 
-    # --- Top Albums (Last Year) ---
-    top_year_albums = user.get_top_albums(limit=10, period=pylast.PERIOD_12MONTHS) 
-    stats_data['top_albums'] = [
-        {'title': album.title, 'artist': album.artist.name, 'scrobbles': play_count} 
-        for album, play_count in top_year_albums
-    ]
-    
-    # --- Top Tracks (Last Year) ---
-    top_year_tracks = user.get_top_tracks(limit=10, period=pylast.PERIOD_12MONTHS) 
-    stats_data['top_tracks'] = [
-        {'title': track.title, 'artist': track.artist.name, 'scrobbles': play_count}
-        for track, play_count in top_year_tracks
-    ]
-
-    # --- Recently Played Tracks ---
-    recent_tracks = user.get_recent_tracks(limit=6)
-    stats_data['recent_tracks'] = [
-        {
-            'title': track_obj.track.title,
-            'artist': track_obj.track.artist.name,
-            'date': track_obj.playback_date or "Now Playing" 
-        }
-        for track_obj in recent_tracks
-    ]
-
-    # --- Currently Playing ---
-    current = user.get_now_playing()
-    stats_data['now_playing'] = "(Nothing currently scrobbling)"
-    stats_data['now_playing_image'] = "" 
-
-    if current:
-        stats_data['now_playing'] = f"{current.title} by {current.artist.name}"
-        try:
-            stats_data['now_playing_image'] = current.get_cover_image()
-        except Exception:
-            pass
-
+    # The banner shows the current track, or the last one played
+    recent = stats_data['recent_tracks']
+    stats_data['hero'] = stats_data['now_playing'] or (recent[0] if recent else None)
     return stats_data
+
 
 def find_artist_in_my_history(names):
     """Looks through my all-time artists, most played first, for any of these names."""
@@ -83,27 +189,9 @@ def find_artist_in_my_history(names):
     page = 1
 
     while True:
-        response = requests.get(
-            'https://ws.audioscrobbler.com/2.0/',
-            params={
-                'method': 'user.gettopartists',
-                'user': LASTFM_USERNAME,
-                'api_key': API_KEY,
-                'period': 'overall',
-                'limit': 1000,
-                'page': page,
-                'format': 'json',
-            },
-            timeout=15,
-        )
-        response.raise_for_status()
-        top_artists = response.json()['topartists']
+        top_artists = lastfm_get('user.gettopartists', period='overall', limit=1000, page=page)['topartists']
 
-        artists = top_artists.get('artist', [])
-        if isinstance(artists, dict):  # Last.fm skips the list when a page has one artist
-            artists = [artists]
-
-        for position, artist in enumerate(artists, start=1):
+        for position, artist in enumerate(as_list(top_artists.get('artist')), start=1):
             if artist['name'].lower() in wanted:
                 rank = (page - 1) * 1000 + position
                 return artist['name'], rank
@@ -111,6 +199,7 @@ def find_artist_in_my_history(names):
         if page >= int(top_artists['@attr']['totalPages']):
             return None, None
         page += 1
+
 
 def describe_listening(artist_name, rank):
     """Turns an artist's all-time rank into a friendly answer."""
@@ -122,14 +211,26 @@ def describe_listening(artist_name, rank):
         return f"Yes, I've listened to {artist_name} before."
     return f"Yes, but I don't listen to {artist_name} much."
 
+
+def listening_badge(rank):
+    """A short label shown beside the search answer."""
+    if rank <= 25:
+        return 'Favorite'
+    if rank <= 50:
+        return 'Likes them'
+    if rank <= 100:
+        return 'Heard before'
+    return 'Rarely played'
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # 1. Fetch general dashboard stats
     data = get_lastfm_stats()
-    search_result = None
+    search = None
 
     # 2. Handle the "Have I listened to..." search bar logic
-    artist_query = request.args.get('artist_name')
+    artist_query = request.args.get('artist_name', '').strip()
     if artist_query:
         try:
             network = pylast.LastFMNetwork(api_key=API_KEY, api_secret=API_SECRET)
@@ -144,17 +245,23 @@ def index():
             my_artist, rank = find_artist_in_my_history(names_to_check)
 
             if my_artist:
-                search_result = describe_listening(my_artist, rank)
+                search = {
+                    'text': describe_listening(my_artist, rank),
+                    'badge': listening_badge(rank),
+                    'image': get_artist_art().get(my_artist.lower(), ''),
+                    'found': True,
+                }
             elif results:
-                search_result = f"Nope, I haven't listened to {results[0].get_name()} yet."
+                search = {'text': f"Nope, I haven't listened to {results[0].get_name()} yet.", 'badge': 'Not yet'}
             else:
-                search_result = f"Could not find an artist named '{artist_query}'."
+                search = {'text': f"Could not find an artist named '{artist_query}'. Check the spelling and try again."}
 
         except Exception as e:
             print(f"Search Error: {e}", flush=True)
-            search_result = "Sorry, something went wrong with that search."
+            search = {'text': "That search didn't go through. Try again in a minute."}
 
-    return render_template('stats.html', data=data, search_result=search_result)
+    return render_template('stats.html', data=data, search=search, artist_query=artist_query)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
