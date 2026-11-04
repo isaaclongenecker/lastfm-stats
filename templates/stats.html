@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ data.username }}'s listening</title>
+    <title>{{ data.name }}'s listening</title>
     <meta name="theme-color" content="#1d1421">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -158,6 +158,8 @@
         /* ---------- Album wall ---------- */
         .wall { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
         .wall li:first-child { grid-column: span 3; grid-row: span 3; }
+        .wall-flip { grid-auto-flow: dense; }
+        .wall-flip li:first-child { grid-column: 4 / span 3; }
         .sleeve { position: relative; display: block; height: 100%; color: var(--paper); }
         .sleeve .art { height: 100%; font-size: 3rem; }
         .sleeve-text {
@@ -201,7 +203,7 @@
         /* ---------- Large touch screens have no hover, so album names always show ---------- */
         @media (hover: none) and (min-width: 821px) {
             .wall { grid-template-columns: repeat(5, 1fr); gap: 20px 10px; }
-            .wall li:first-child { grid-column: auto; grid-row: auto; }
+            .wall li:first-child, .wall-flip li:first-child { grid-column: auto; grid-row: auto; }
             .sleeve, .sleeve .art { height: auto; }
             .sleeve-text { position: static; opacity: 1; background: none; padding: 8px 0 0; }
             .wall li:first-child .sleeve-text strong { font: 700 1rem/1.3 var(--body); }
@@ -214,7 +216,7 @@
             .hero-art { width: min(68%, 280px); }
             .pair { grid-template-columns: 1fr; gap: 72px; }
             .wall { grid-template-columns: repeat(3, 1fr); gap: 16px 8px; }
-            .wall li:first-child { grid-column: span 3; grid-row: auto; }
+            .wall li:first-child, .wall-flip li:first-child { grid-column: span 3; grid-row: auto; }
             .sleeve, .sleeve .art { height: auto; }
             .sleeve-text { position: static; opacity: 1; background: none; padding: 7px 0 0; font-size: .8125rem; }
             .sleeve-text strong { font-size: .875rem; overflow-wrap: anywhere; }
@@ -241,9 +243,9 @@
         {% endif %}
 
         <div class="topline">
-            <h1>{{ data.username }}'s listening</h1>
-            {% if data.total_scrobbles %}
-            <p>{{ data.total_scrobbles }} scrobbles since {{ data.registered_on }}</p>
+            <h1>{{ data.name }}</h1>
+            {% if data.week_scrobbles %}
+            <p>{{ data.week_scrobbles }}</p>
             {% endif %}
         </div>
 
@@ -298,11 +300,12 @@
             {% endif %}
         </section>
 
-        {% if data.top_albums %}
+        {% macro album_wall(heading, albums, extra_class) %}
+        {% if albums %}
         <section class="block">
-            <h2>Most-played albums this year</h2>
-            <ol class="wall">
-                {% for album in data.top_albums %}
+            <h2>{{ heading }}</h2>
+            <ol class="wall {{ extra_class }}">
+                {% for album in albums %}
                 <li>
                     <a class="sleeve" href="{{ album.url }}" target="_blank" rel="noopener">
                         <div class="art">
@@ -323,6 +326,10 @@
             </ol>
         </section>
         {% endif %}
+        {% endmacro %}
+
+        {{ album_wall('Most-played albums this month', data.month_albums, '') }}
+        {{ album_wall('Most-played albums this year', data.top_albums, 'wall-flip') }}
 
         <div class="pair-wrap">
             <div class="pair">
