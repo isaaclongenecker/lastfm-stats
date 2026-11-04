@@ -18,6 +18,15 @@ DISPLAY_NAME = 'Isaac Longenecker'
 LATELY_TOP_ARTISTS = 25
 LATELY_MIN_SCROBBLES = 10
 
+# "Haven't played in a while" means no plays during this period
+# (Last.fm's choices are 1month, 3month, 6month, and 12month)
+NOT_PLAYED_PERIOD = '6month'
+
+# "Recently discovered" means nearly all of an artist's plays happened during
+# this period, and they have at least DISCOVERED_MIN_PLAYS plays
+DISCOVERED_PERIOD = '3month'
+DISCOVERED_MIN_PLAYS = 3
+
 app = Flask(__name__)
 
 # Last.fm uses this image when it has no real artwork
@@ -208,6 +217,41 @@ def get_lastfm_stats():
     return stats_data
 
 
+def load_artist_plays(period):
+    """Gets everyone I played during a period, as {artist name: plays}."""
+    plays = {}
+    page = 1
+    while True:
+        top_artists = lastfm_get('user.gettopartists', period=period, limit=1000, page=page)['topartists']
+        for artist in as_list(top_artists.get('artist')):
+            plays[artist['name'].lower()] = int(artist['playcount'])
+        if page >= int(top_artists['@attr']['totalPages']):
+            return plays
+        page += 1
+
+
+def get_artist_plays(period):
+    """Returns None if Last.fm couldn't answer, so no tag is added by mistake."""
+    return cached(f'artist plays {period}', 600, lambda: load_artist_plays(period), None)
+
+
+def timing_badges(artist_name, all_time_plays):
+    """Adds tags based on when I played an artist."""
+    badges = []
+    key = artist_name.lower()
+
+    discovered_plays = get_artist_plays(DISCOVERED_PERIOD)
+    if (discovered_plays is not None and all_time_plays >= DISCOVERED_MIN_PLAYS
+            and discovered_plays.get(key, 0) >= 0.9 * all_time_plays):
+        badges.append('Recently discovered')
+
+    not_played_plays = get_artist_plays(NOT_PLAYED_PERIOD)
+    if not_played_plays is not None and key not in not_played_plays:
+        badges.append("Haven't played in a while")
+
+    return badges
+
+
 def find_artist_in_my_history(names):
     """Looks through my all-time artists, most played first, for any of these names."""
     wanted = {name.strip().lower() for name in names}
@@ -219,10 +263,10 @@ def find_artist_in_my_history(names):
         for position, artist in enumerate(as_list(top_artists.get('artist')), start=1):
             if artist['name'].lower() in wanted:
                 rank = (page - 1) * 1000 + position
-                return artist['name'], rank
+                return artist['name'], rank, int(artist['playcount'])
 
         if page >= int(top_artists['@attr']['totalPages']):
-            return None, None
+            return None, None, 0
         page += 1
 
 
@@ -245,7 +289,7 @@ def listening_badge(rank):
         return 'Likes them'
     if rank <= 100:
         return 'Heard before'
-    return 'Rarely played'
+    return None
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -270,13 +314,15 @@ def index():
             lately_artist = find_artist_lately(names_to_check)
 
             # Also look for the typed or official name in my all-time history
-            my_artist, rank = find_artist_in_my_history(names_to_check)
+            my_artist, rank, all_time_plays = find_artist_in_my_history(names_to_check)
 
             if lately_artist:
                 # An all-time favorite keeps its Favorite badge beside Heavy rotation
                 badges = ['Heavy rotation']
                 if rank and listening_badge(rank) == 'Favorite':
                     badges.insert(0, 'Favorite')
+                if my_artist:
+                    badges += timing_badges(my_artist, all_time_plays)
                 search = {
                     'text': f"Yes, I've been listening to {lately_artist} a lot lately!",
                     'badges': badges,
@@ -284,9 +330,12 @@ def index():
                     'found': True,
                 }
             elif my_artist:
+                rank_badge = listening_badge(rank)
+                badges = [rank_badge] if rank_badge else []
+                badges += timing_badges(my_artist, all_time_plays)
                 search = {
                     'text': describe_listening(my_artist, rank),
-                    'badges': [listening_badge(rank)],
+                    'badges': badges,
                     'image': get_artist_art().get(my_artist.lower(), ''),
                     'found': True,
                 }
